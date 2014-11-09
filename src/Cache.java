@@ -56,13 +56,13 @@ public class Cache {
 		this.message = null;
 	}
 	
-	private void prepareMessage(long address, MessageType type)
+	private void prepareMessage(long address, MessageType type, int extraDelay)
 	{
 		if(type == MessageType.ACKNOWLEDGED_PREV_MESSAGE)
 		{
-			this.message = new Message(address, type, 1); //FIXME no delay?
+			this.message = new Message(address, type, extraDelay+1); //FIXME no delay?
 		}
-		this.message = new Message(address, type, 0);
+		this.message = new Message(address, type, extraDelay);
 	}
 	
 	//LRU
@@ -137,13 +137,13 @@ public class Cache {
 			{
 				//read miss
 				this.numReadMiss++;
-				this.prepareMessage(address, MessageType.WANT_TO_READ);
+				this.prepareMessage(address, MessageType.WANT_TO_READ, 0);
 			}
 			else
 			{
 				//write miss
 				this.numWriteMiss++;
-				this.prepareMessage(address, MessageType.WANT_TO_WRITE);
+				this.prepareMessage(address, MessageType.WANT_TO_WRITE, 0);
 			}
 		}
 		else
@@ -167,7 +167,7 @@ public class Cache {
 				//write hit but need to invalidate everyone else
 				if(!this.state[index][associativityIndex].isExclusive())
 				{
-					this.prepareMessage(address, MessageType.INVALIDATE);
+					this.prepareMessage(address, MessageType.INVALIDATE, 0);
 				}
 			}
 		}
@@ -255,7 +255,7 @@ public class Cache {
 				//make it shared if you have it
 				this.state[index][associativityIndex].busRead();
 				//send return message if you have it
-				this.prepareMessage(message.memoryAddress, MessageType.ACKNOWLEDGED_PREV_MESSAGE);
+				this.prepareMessage(message.memoryAddress, MessageType.ACKNOWLEDGED_PREV_MESSAGE, message.cycleDelay);
 				break;
 			case WANT_TO_WRITE:
 				//address not found, don't care
@@ -266,7 +266,7 @@ public class Cache {
 				//make it invalid if you have it
 				this.state[index][associativityIndex].busWrite();
 				//send return message if you have it
-				this.prepareMessage(message.memoryAddress, MessageType.ACKNOWLEDGED_PREV_MESSAGE);
+				this.prepareMessage(message.memoryAddress, MessageType.ACKNOWLEDGED_PREV_MESSAGE, message.cycleDelay);
 				break;
 			default:
 				throw new UnsupportedOperationException("Message Type is not handled.");
