@@ -20,7 +20,7 @@ public class Cache {
 	
 	private final Processor processor;
 	
-	private Message message;
+	protected Message message;
 
 	protected final long[][] cache;
 	protected final State[][] state;
