@@ -7,8 +7,9 @@ public class Message
 	public final int messageNumber;
 	public final long memoryAddress;
 	public final MessageType type;
+	public final int cycleDelay;
 	
-	public Message(long memoryAddress, MessageType type)
+	public Message(long memoryAddress, MessageType type, int cycleDelay)
 	{
 		synchronized(messageNumberCounter)
 		{
@@ -17,5 +18,6 @@ public class Message
 		}
 		this.memoryAddress = memoryAddress;
 		this.type = type;
+		this.cycleDelay = cycleDelay;
 	}
 }
