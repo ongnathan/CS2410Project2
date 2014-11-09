@@ -26,7 +26,7 @@ public class Cache {
 //	Set[] sets;
 	private final long[][] cache;
 	private final State[][] state;
-	private final long[] leastRecentlyUsed;
+	private final int[][] leastRecentlyUsedCycle;
 
 	public Cache(int cache_size, int associativity, int block_size)
 	{
@@ -45,10 +45,18 @@ public class Cache {
 		
 		this.processor = new Processor();
 		
-		int numBlocks = cache_size / block_size;
-		this.cache = new long[numBlocks / this.associativity][this.associativity];
-		this.state = new State[numBlocks / this.associativity][this.associativity];
-		this.leastRecentlyUsed = new long[numBlocks / this.associativity];
+		int numCacheLines = (cache_size / block_size) / this.associativity;
+		this.cache = new long[numCacheLines][this.associativity];
+		this.leastRecentlyUsedCycle = new int[numCacheLines][this.associativity];
+		for(int i = 0; i < numCacheLines; i++)
+		{
+			for(int j = 0; j < this.associativity; j++)
+			{
+				this.cache[i][j] = -1L;
+				this.leastRecentlyUsedCycle[i][j] = -1;
+			}
+		}
+		this.state = new State[numCacheLines][this.associativity];
 		
 		this.message = null;
 
@@ -101,7 +109,7 @@ public class Cache {
 	
 	public boolean runInstruction(String instruction)
 	{
-		if(!this.processor.parseInstruction(instruction))
+		if(this.message != null || !this.processor.parseInstruction(instruction))
 		{
 			return false;
 		}
@@ -131,6 +139,8 @@ public class Cache {
 		else
 		{
 			//cache hit
+			this.leastRecentlyUsedCycle[index][associativityIndex] = this.processor.getInstructionCycleNumber();
+			
 			if(!this.processor.isInstructionWriteCommand())
 			{
 				//read hit
@@ -167,13 +177,38 @@ public class Cache {
 	public Message getOutgoingMessage()
 	{
 		Message message = this.message;
-		this.message = null;
+		if(this.message.type == MessageType.INVALIDATE || this.message.type == MessageType.ACKNOWLEDGED_PREV_MESSAGE)
+		{
+			this.message = null;
+		}
 		return message;
 	}
 	
-	public void setIncomingMessage(Message message)
+	public void setAndProcessIncomingMessage(Message message)
 	{
-		
+		switch(message.type)
+		{
+			case ACKNOWLEDGED_PREV_MESSAGE:
+				//process message
+				this.message = null;
+				break;
+			case INVALIDATE:
+				//find address
+				//invalidate it if it exists
+				break;
+			case WANT_TO_READ:
+				//find address
+				//make it shared if you have it
+				//send return message if you have it
+				break;
+			case WANT_TO_WRITE:
+				//find address
+				//make it invalid if you have it
+				//send return message if you have it
+				break;
+			default:
+				throw new UnsupportedOperationException("Message Type is not handled.");
+		}
 	}
 
 //	private void find(int address) {
