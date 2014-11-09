@@ -1,8 +1,10 @@
+package memory;
 import processor.Processor;
 import protocol.State;
 import snoopingBus.Message;
 import snoopingBus.MessageType;
 
+//TODO handle block sizes
 public class Cache {
 
 	public final int cache_size;	//in KB
@@ -20,10 +22,17 @@ public class Cache {
 	
 	private Message message;
 
-	private final long[][] cache;
-	private final State[][] state;
-	private final int[][] leastRecentlyUsedCycle;
-
+	protected final long[][] cache;
+	protected final State[][] state;
+	protected final int[][] leastRecentlyUsedCycle;
+	
+	/**
+	 * The constructor.
+	 * @param cache_size How big is the cache in KB?
+	 * @param associativity What is the associativity factor of the cache?
+	 * @param block_size What is the block size in B?
+	 * @param protocolIsMSI Is the protcol MSI or not?  (If it isn't, it's MESI)
+	 */
 	public Cache(int cache_size, int associativity, int block_size, boolean protocolIsMSI)
 	{
 		// initialize counters
@@ -56,8 +65,20 @@ public class Cache {
 		this.message = null;
 	}
 	
-	private void prepareMessage(long address, MessageType type, int extraDelay)
+	/**
+	 * Prepares a message for the bus.
+	 * (Private method, so no need to worry about this one).
+	 * @param address The address you are referencing.
+	 * @param type What type of message is it?  See the MessageType class.
+	 * @param secondaryType Is there another type?  Usually this is only for WRITE_BACK.
+	 * @param extraDelay What is the delay due to this message?
+	 */
+	private void prepareMessage(long address, MessageType type, MessageType secondaryType, int extraDelay)
 	{
+		if(secondaryType != MessageType.WRITE_BACK && secondaryType != null)
+		{
+			throw new UnsupportedOperationException("Secondary Message type must be a write back");
+		}
 		if(type == MessageType.ACKNOWLEDGED_PREV_MESSAGE)
 		{
 			this.message = new Message(address, type, extraDelay+1); //FIXME no delay?
@@ -65,8 +86,27 @@ public class Cache {
 		this.message = new Message(address, type, extraDelay);
 	}
 	
+	/**
+	 * Prepares a message for the bus.
+	 * (Protected method, so no need to worry about this one).
+	 * @param address The address you are referencing.
+	 * @param type What type of message is it?  See the MessageType class.
+	 * @param extraDelay What is the delay due to this message?
+	 */
+	protected void prepareMessage(long address, MessageType type, int extraDelay)
+	{
+		this.prepareMessage(address, type, null, extraDelay);
+	}
+	
 	//LRU
-	private int evict(long address, int index)
+	/**
+	 * Uses the Least Recently Used method to evict a block from cache.
+	 * (Protected method, so no need to worry about this one).
+	 * @param address The address you want to REPLACE the evicted block.
+	 * @param index The index you want to evict from.
+	 * @return Returns the associativity index of the block that was evicted.
+	 */
+	protected int evict(long address, int index)
 	{
 		this.numEvictions++;
 		int minCycleTime = Integer.MAX_VALUE;
@@ -89,43 +129,78 @@ public class Cache {
 		this.cache[index][associativityIndexToEvict] = message.memoryAddress;
 		return associativityIndexToEvict;
 	}
-
+	
+	/**
+	 * Gets the number of read hits in this cache.
+	 * @return Returns the number of read hits.
+	 */
 	public int getNumReadHits()
 	{
 		return this.numReadHit;
 	}
 	
+	/**
+	 * Gets the number of write hits in this cache.
+	 * @return Returns the number of write hits.
+	 */
 	public int getNumWriteHits()
 	{
 		return this.numWriteHit;
 	}
 	
+	/**
+	 * Gets the number of read misses in this cache.
+	 * @return Returns the number of read misses.
+	 */
 	public int getNumReadMiss()
 	{
 		return this.numReadMiss;
 	}
 	
+	/**
+	 * Gets the number of write misses in this cache.
+	 * @return Returns the number of write misses.
+	 */
 	public int getNumWriteMiss()
 	{
 		return this.numWriteMiss;
 	}
 	
+	/**
+	 * Gets the total number of reads in this cache.
+	 * @return Returns the number of reads.
+	 */
 	public int getTotalNumReads()
 	{
 		return this.numReadHit + this.numReadMiss;
 	}
 	
+	/**
+	 * Gets the total number of writes in this cache.
+	 * @return Returns the number of writes.
+	 */
 	public int getTotalNumWrites()
 	{
 		return this.numWriteHit + this.numWriteMiss;
 	}
 	
+	/**
+	 * Gets the number of evictions in this cache.
+	 * @return Returns the number of evictions.
+	 */
 	public int getNumEvictions()
 	{
 		return this.numEvictions;
 	}
 	
-	public boolean runInstruction(String instruction)
+	/**
+	 * Runs an instruction from file.  All you need to do is pass in the one-line instruction at the correct time.
+	 * This method does not account for correct cycle time.
+	 * @param instruction One line of the instruction from the file, delimited by tabs.
+	 * @param delaySinceIssuing The number of cycles that have passed since the reported instruction time of execution
+	 * @return Returns whether or not running the instruction was successful.  Returns false if the instruction is meant for a different core or if the core is waiting for a return message from the bus.
+	 */
+	public boolean runInstruction(String instruction, int delaySinceIssuing)
 	{
 		if(this.message != null || !this.processor.parseInstruction(instruction))
 		{
@@ -145,19 +220,19 @@ public class Cache {
 			{
 				//read miss
 				this.numReadMiss++;
-				this.prepareMessage(address, MessageType.WANT_TO_READ, 0);
+				this.prepareMessage(address, MessageType.WANT_TO_READ, delaySinceIssuing);
 			}
 			else
 			{
 				//write miss
 				this.numWriteMiss++;
-				this.prepareMessage(address, MessageType.WANT_TO_WRITE, 0);
+				this.prepareMessage(address, MessageType.WANT_TO_WRITE, delaySinceIssuing);
 			}
 		}
 		else
 		{
 			//cache hit
-			this.leastRecentlyUsedCycle[index][associativityIndex] = this.processor.getInstructionCycleNumber();
+			this.leastRecentlyUsedCycle[index][associativityIndex] = this.processor.getInstructionCycleNumber()+delaySinceIssuing;
 			
 			if(!this.processor.isInstructionWriteCommand())
 			{
@@ -182,16 +257,24 @@ public class Cache {
 		return true;
 	}
 	
+	/**
+	 * The bus should call this method to get the message that needs to be sent elsewhere via the bus.
+	 * @return Returns the Message that needs to be sent.  Returns null if no message needs to be sent.
+	 */
 	public Message getOutgoingMessage()
 	{
 		Message message = this.message;
-		if(this.message.type == MessageType.INVALIDATE || this.message.type == MessageType.ACKNOWLEDGED_PREV_MESSAGE)
+		if(this.message.type == MessageType.INVALIDATE || this.message.type == MessageType.ACKNOWLEDGED_PREV_MESSAGE || this.message.type == MessageType.WRITE_BACK)
 		{
 			this.message = null;
 		}
 		return message;
 	}
 	
+	/**
+	 * The bus should call this method to give any message to this processor.
+	 * @param message The message that needs to be read by this processor.
+	 */
 	public void setAndProcessIncomingMessage(Message message)
 	{
 		//find location in cache
@@ -260,10 +343,22 @@ public class Cache {
 				{
 					return;
 				}
+				
 				//make it shared if you have it
 				this.state[index][associativityIndex].busRead();
+				
 				//send return message if you have it
-				this.prepareMessage(message.memoryAddress, MessageType.ACKNOWLEDGED_PREV_MESSAGE, message.cycleDelay);
+				if(this.state[index][associativityIndex].isModified())
+				{
+					//have to do a write back too
+					this.prepareMessage(message.memoryAddress, MessageType.ACKNOWLEDGED_PREV_MESSAGE, MessageType.WRITE_BACK, message.cycleDelay);
+				}
+				else
+				{
+					//send only return message
+					this.prepareMessage(message.memoryAddress, MessageType.ACKNOWLEDGED_PREV_MESSAGE, message.cycleDelay);
+				}
+				
 				break;
 			case WANT_TO_WRITE:
 				//address not found, don't care
@@ -271,6 +366,12 @@ public class Cache {
 				{
 					return;
 				}
+				
+				//no need a write back here because the next guy is going to have it and it will be modified on his end.
+//				if(this.state[index][associativityIndex].isModified())
+//				{
+//					
+//				}
 				//make it invalid if you have it
 				this.state[index][associativityIndex].busWrite();
 				//send return message if you have it
