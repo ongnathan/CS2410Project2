@@ -1,5 +1,10 @@
 package memory;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Queue;
+import java.util.LinkedList;
+
 import snoopingBus.Message;
 import snoopingBus.MessageType;
 
@@ -7,8 +12,12 @@ import snoopingBus.MessageType;
 
 public class Memory extends Cache
 {
-	private int hitPenalty;
-	private int missPenalty;
+	private final int hitPenalty;
+	private final int missPenalty;
+	
+	private final int numberOfBanks;
+	
+	private final List<Queue<Message>> bankQueues;
 	
 	/**
 	 * The constructor.  Same as Cache, except with added fields of hit and miss penalties.
@@ -19,10 +28,17 @@ public class Memory extends Cache
 	 * @param hitPenalty Number of clock cycles of delay due to a hit in the L2.
 	 * @param missPenalty Number of clock cycles of delay due to a miss in the L2.
 	 */
-	public Memory(int cache_size, int associativity, int block_size, boolean protocolIsMSI, int hitPenalty, int missPenalty)
+	public Memory(int cache_size, int associativity, int block_size, boolean protocolIsMSI, int hitPenalty, int missPenalty, int numberOfBanks)
 	{
 		super(cache_size, associativity, block_size, protocolIsMSI);
-		// TODO Auto-generated constructor stub
+		this.hitPenalty = hitPenalty;
+		this.missPenalty = missPenalty;
+		this.numberOfBanks = numberOfBanks;
+		this.bankQueues = new ArrayList<Queue<Message>>();
+		for(int i = 0; i < this.numberOfBanks; i++)
+		{
+			this.bankQueues.add(new LinkedList<Message>());
+		}
 	}
 	
 	//NOTE: inheritDoc means see Cache's version of the documentation
@@ -68,7 +84,7 @@ public class Memory extends Cache
 	public void setAndProcessIncomingMessage(Message message, int currentCycleTime)
 	{
 		//we have to handle it differently
-		int index = (int)(message.memoryAddress / block_size) % this.cache.length;
+		int index = (int)(message.memoryAddress / blockSize) % this.cache.length;
 		int associativityIndex = -1;
 		//TODO need to account for block size
 		for(associativityIndex = 0; associativityIndex < this.associativity && this.cache[index][associativityIndex] != message.memoryAddress; associativityIndex++);

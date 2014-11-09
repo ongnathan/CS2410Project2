@@ -7,9 +7,9 @@ import snoopingBus.MessageType;
 //TODO handle block sizes
 public class Cache {
 
-	public final int cache_size;	//in KB
+	public final int cacheSize;	//in KB
 	public final int associativity; // which is the number of blocks in each set
-	public final int block_size; 	//in B, the size of block which will be the same across all caches K=2^k bytes
+	public final int blockSize; 	//in B, the size of block which will be the same across all caches K=2^k bytes
 	
 	private int numWriteHit;
 	private int numReadHit;
@@ -28,12 +28,12 @@ public class Cache {
 	
 	/**
 	 * The constructor.
-	 * @param cache_size How big is the cache in KB?
+	 * @param cacheSize How big is the cache in KB?
 	 * @param associativity What is the associativity factor of the cache?
-	 * @param block_size What is the block size in B?
+	 * @param blockSize What is the block size in B?
 	 * @param protocolIsMSI Is the protcol MSI or not?  (If it isn't, it's MESI)
 	 */
-	public Cache(int cache_size, int associativity, int block_size, boolean protocolIsMSI)
+	public Cache(int cacheSize, int associativity, int blockSize, boolean protocolIsMSI)
 	{
 		// initialize counters
 		this.numWriteHit = 0;
@@ -42,13 +42,13 @@ public class Cache {
 		this.numReadMiss = 0;
 		// Eviction_num=0;
 
-		this.cache_size = cache_size; // we need to specify the initial values of the cache in KB
+		this.cacheSize = cacheSize; // we need to specify the initial values of the cache in KB
 		this.associativity = associativity;
-		this.block_size = block_size; // here too in byte
+		this.blockSize = blockSize; // here too in byte
 		
 		this.processor = new Processor();
 		
-		int numCacheLines = (cache_size * 1024 / block_size) / this.associativity;
+		int numCacheLines = (cacheSize * 1024 / blockSize) / this.associativity;
 		this.cache = new long[numCacheLines][this.associativity];
 		this.leastRecentlyUsedCycle = new int[numCacheLines][this.associativity];
 		this.state = new State[numCacheLines][this.associativity];
@@ -126,7 +126,7 @@ public class Cache {
 			this.prepareMessage(address, MessageType.WRITE_BACK, 0);
 		}
 		
-		this.cache[index][associativityIndexToEvict] = message.memoryAddress;
+		this.cache[index][associativityIndexToEvict] = address - (address % this.blockSize);
 		return associativityIndexToEvict;
 	}
 	
@@ -209,10 +209,10 @@ public class Cache {
 		
 		//find the place in cache
 		long address = this.processor.getInstructionAddress();
-		int index = (int)(address / block_size) % this.cache.length;
+		int index = (int)(address / this.blockSize) % this.cache.length;
 		int associativityIndex = -1;
 		//TODO need to account for block size
-		for(associativityIndex = 0; associativityIndex < this.associativity && this.cache[index][associativityIndex] != address; associativityIndex++);
+		for(associativityIndex = 0; associativityIndex < this.associativity && this.cache[index][associativityIndex] != address - (address % this.blockSize); associativityIndex++);
 		
 		if(associativityIndex == this.associativity || this.state[index][associativityIndex].isInvalid())
 		{
@@ -280,10 +280,10 @@ public class Cache {
 	public void setAndProcessIncomingMessage(Message message, int currentCycleTime)
 	{
 		//find location in cache
-		int index = (int)(message.memoryAddress / block_size) % this.cache.length;
+		int index = (int)(message.memoryAddress / blockSize) % this.cache.length;
 		int associativityIndex = -1;
 		//TODO need to account for block size
-		for(associativityIndex = 0; associativityIndex < this.associativity && this.cache[index][associativityIndex] != message.memoryAddress; associativityIndex++);
+		for(associativityIndex = 0; associativityIndex < this.associativity && this.cache[index][associativityIndex] != message.memoryAddress - (message.memoryAddress % this.blockSize); associativityIndex++);
 		
 		switch(message.type)
 		{
@@ -300,7 +300,7 @@ public class Cache {
 				{
 					if(this.cache[index][j] == -1L)
 					{
-						this.cache[index][j] = message.memoryAddress;
+						this.cache[index][j] = message.memoryAddress - (message.memoryAddress % this.blockSize);
 						if(this.message.type == MessageType.WANT_TO_READ)
 						{
 							this.state[index][j].processorRead();
