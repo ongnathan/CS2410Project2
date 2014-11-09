@@ -31,13 +31,14 @@ public class Memory extends Cache
 	}
 	
 	//NOTE: this should be the last person to receive the message.
-	//If the message was handled by another cache, DO NOT SEND IT HERE, as it will cause unnecessary delay
+	//If the message was a WANT TO READ or WANT TO WRITE message, and it was handled by another cache, DO NOT SEND THE MESSAGE HERE
 	@Override
-	public void setAndProcessIncomingMessage(Message message)
+	public void setAndProcessIncomingMessage(Message message, int currentCycleTime)
 	{
 		//we have to handle it differently
 		int index = (int)(message.memoryAddress / block_size) % this.cache.length;
 		int associativityIndex = -1;
+		//TODO need to account for block size
 		for(associativityIndex = 0; associativityIndex < this.associativity && this.cache[index][associativityIndex] != message.memoryAddress; associativityIndex++);
 		
 		boolean hit = true;
@@ -61,19 +62,21 @@ public class Memory extends Cache
 				//invalidate it if it exists
 				break;
 			case WANT_TO_READ:
-				//address not found, need to get it from memory
+				//address not found, need to get it from "memory"
 				if(associativityIndex == this.associativity || this.state[index][associativityIndex].isInvalid())
 				{
 					hit = false;
+					this.cache[index][associativityIndex] = message.memoryAddress;
+					this.leastRecentlyUsedCycle[index][associativityIndex] = currentCycleTime;
 //					return;
 				}
 				//make it shared once you have it
 				this.state[index][associativityIndex].busRead();
 				//send return message if you have it
-				this.prepareMessage(message.memoryAddress, MessageType.ACKNOWLEDGED_PREV_MESSAGE, message.cycleDelay+(hit ? this.hitPenalty : this.missPenalty));
+				this.prepareMessage(message.memoryAddress, MessageType.ACKNOWLEDGED_PREV_MESSAGE, currentCycleTime+(hit ? this.hitPenalty : this.missPenalty));
 				break;
 			case WANT_TO_WRITE:
-				//address not found,need to get it from memory
+				//address not found, need to get it from "memory"
 				if(associativityIndex == this.associativity || this.state[index][associativityIndex].isInvalid())
 				{
 					hit = false;
@@ -82,7 +85,7 @@ public class Memory extends Cache
 				//make it invalid if you have it
 				this.state[index][associativityIndex].busWrite();
 				//send return message if you have it
-				this.prepareMessage(message.memoryAddress, MessageType.ACKNOWLEDGED_PREV_MESSAGE, message.cycleDelay+(hit ? this.hitPenalty : this.missPenalty));
+				this.prepareMessage(message.memoryAddress, MessageType.ACKNOWLEDGED_PREV_MESSAGE, currentCycleTime+(hit ? this.hitPenalty : this.missPenalty));
 				break;
 			case WRITE_BACK:
 				

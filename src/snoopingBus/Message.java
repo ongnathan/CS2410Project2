@@ -8,11 +8,11 @@ public class Message
 	public final long memoryAddress;
 	public final MessageType type;
 	public final MessageType secondaryType;
-	public final int cycleDelay;
+	public final int issueCycleTime;
 	
-	public Message(long memoryAddress, MessageType type, int cycleDelay)
+	public Message(long memoryAddress, MessageType type, int issueCycleTime)
 	{
-		this(memoryAddress, type, null, cycleDelay);
+		this(memoryAddress, type, null, issueCycleTime);
 	}
 	
 	public Message(long memoryAddress, MessageType type, MessageType secondaryType, int cycleDelay)
@@ -25,6 +25,6 @@ public class Message
 		this.memoryAddress = memoryAddress;
 		this.type = type;
 		this.secondaryType = secondaryType;
-		this.cycleDelay = cycleDelay;
+		this.issueCycleTime = cycleDelay;
 	}
 }

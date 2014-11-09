@@ -71,19 +71,19 @@ public class Cache {
 	 * @param address The address you are referencing.
 	 * @param type What type of message is it?  See the MessageType class.
 	 * @param secondaryType Is there another type?  Usually this is only for WRITE_BACK.
-	 * @param extraDelay What is the delay due to this message?
+	 * @param issueTime When was this message issued?
 	 */
-	private void prepareMessage(long address, MessageType type, MessageType secondaryType, int extraDelay)
+	private void prepareMessage(long address, MessageType type, MessageType secondaryType, int issueTime)
 	{
 		if(secondaryType != MessageType.WRITE_BACK && secondaryType != null)
 		{
 			throw new UnsupportedOperationException("Secondary Message type must be a write back");
 		}
-		if(type == MessageType.ACKNOWLEDGED_PREV_MESSAGE)
-		{
-			this.message = new Message(address, type, extraDelay+1); //FIXME no delay?
-		}
-		this.message = new Message(address, type, extraDelay);
+//		if(type == MessageType.ACKNOWLEDGED_PREV_MESSAGE)
+//		{
+//			this.message = new Message(address, type, issueTime+1); //FIXME no delay?
+//		}
+		this.message = new Message(address, type, issueTime);
 	}
 	
 	/**
@@ -91,11 +91,11 @@ public class Cache {
 	 * (Protected method, so no need to worry about this one).
 	 * @param address The address you are referencing.
 	 * @param type What type of message is it?  See the MessageType class.
-	 * @param extraDelay What is the delay due to this message?
+	 * @param issueTime When was this message issued?
 	 */
-	protected void prepareMessage(long address, MessageType type, int extraDelay)
+	protected void prepareMessage(long address, MessageType type, int issueTime)
 	{
-		this.prepareMessage(address, type, null, extraDelay);
+		this.prepareMessage(address, type, null, issueTime);
 	}
 	
 	//LRU
@@ -210,7 +210,8 @@ public class Cache {
 		//find the place in cache
 		long address = this.processor.getInstructionAddress();
 		int index = (int)(address / block_size) % this.cache.length;
-		int associativityIndex = 0;
+		int associativityIndex = -1;
+		//TODO need to account for block size
 		for(associativityIndex = 0; associativityIndex < this.associativity && this.cache[index][associativityIndex] != address; associativityIndex++);
 		
 		if(associativityIndex == this.associativity || this.state[index][associativityIndex].isInvalid())
@@ -274,12 +275,14 @@ public class Cache {
 	/**
 	 * The bus should call this method to give any message to this processor.
 	 * @param message The message that needs to be read by this processor.
+	 * @param currentCycleTime The cycle time of the incoming message.
 	 */
-	public void setAndProcessIncomingMessage(Message message)
+	public void setAndProcessIncomingMessage(Message message, int currentCycleTime)
 	{
 		//find location in cache
 		int index = (int)(message.memoryAddress / block_size) % this.cache.length;
 		int associativityIndex = -1;
+		//TODO need to account for block size
 		for(associativityIndex = 0; associativityIndex < this.associativity && this.cache[index][associativityIndex] != message.memoryAddress; associativityIndex++);
 		
 		switch(message.type)
@@ -306,7 +309,7 @@ public class Cache {
 						{
 							this.state[index][j].processorWrite();
 						}
-						this.leastRecentlyUsedCycle[index][j] = this.processor.getInstructionCycleNumber() + message.cycleDelay;
+						this.leastRecentlyUsedCycle[index][j] = currentCycleTime;
 						emptySpaceFound = true;
 					}
 					this.message = null;
@@ -325,7 +328,7 @@ public class Cache {
 					{
 						this.state[index][associativityIndex].processorWrite();
 					}
-					this.leastRecentlyUsedCycle[index][associativityIndex] = this.processor.getInstructionCycleNumber() + message.cycleDelay;
+					this.leastRecentlyUsedCycle[index][associativityIndex] = currentCycleTime;
 				}
 				break;
 			case INVALIDATE:
@@ -351,12 +354,12 @@ public class Cache {
 				if(this.state[index][associativityIndex].isModified())
 				{
 					//have to do a write back too
-					this.prepareMessage(message.memoryAddress, MessageType.ACKNOWLEDGED_PREV_MESSAGE, MessageType.WRITE_BACK, message.cycleDelay);
+					this.prepareMessage(message.memoryAddress, MessageType.ACKNOWLEDGED_PREV_MESSAGE, MessageType.WRITE_BACK, currentCycleTime);
 				}
 				else
 				{
 					//send only return message
-					this.prepareMessage(message.memoryAddress, MessageType.ACKNOWLEDGED_PREV_MESSAGE, message.cycleDelay);
+					this.prepareMessage(message.memoryAddress, MessageType.ACKNOWLEDGED_PREV_MESSAGE, currentCycleTime);
 				}
 				
 				break;
@@ -375,7 +378,7 @@ public class Cache {
 				//make it invalid if you have it
 				this.state[index][associativityIndex].busWrite();
 				//send return message if you have it
-				this.prepareMessage(message.memoryAddress, MessageType.ACKNOWLEDGED_PREV_MESSAGE, message.cycleDelay);
+				this.prepareMessage(message.memoryAddress, MessageType.ACKNOWLEDGED_PREV_MESSAGE, currentCycleTime);
 				break;
 			case WRITE_BACK:
 				//ignore
