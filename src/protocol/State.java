@@ -337,4 +337,9 @@ public class State
 	{
 		return this.state == MSI.MODIFIED || this.state == MESI.MODIFIED || this.state == MESI.EXCLUSIVE;
 	}
+	
+	public boolean isModified()
+	{
+		return this.state == MSI.MODIFIED || this.state == MESI.MODIFIED;
+	}
 }

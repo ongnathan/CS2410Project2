@@ -66,7 +66,7 @@ public class Cache {
 	}
 	
 	//LRU
-	private int evict(int index)
+	private int evict(long address, int index)
 	{
 		this.numEvictions++;
 		int minCycleTime = Integer.MAX_VALUE;
@@ -79,6 +79,14 @@ public class Cache {
 				associativityIndexToEvict = j;
 			}
 		}
+		
+		//prepare writeback message if the thing is modified
+		if(this.state[index][associativityIndexToEvict].isModified())
+		{
+			this.prepareMessage(address, MessageType.WRITE_BACK, 0);
+		}
+		
+		this.cache[index][associativityIndexToEvict] = message.memoryAddress;
 		return associativityIndexToEvict;
 	}
 
@@ -218,12 +226,13 @@ public class Cache {
 						this.leastRecentlyUsedCycle[index][j] = this.processor.getInstructionCycleNumber() + message.cycleDelay;
 						emptySpaceFound = true;
 					}
+					this.message = null;
 				}
 				//need to evict if no empty space available
 				if(!emptySpaceFound)
 				{
-					associativityIndex = this.evict(index);
-					this.cache[index][associativityIndex] = message.memoryAddress;
+					associativityIndex = this.evict(message.memoryAddress, index);
+					
 					this.state[index][associativityIndex].busInvalidate();
 					if(this.message.type == MessageType.WANT_TO_READ)
 					{
@@ -235,7 +244,6 @@ public class Cache {
 					}
 					this.leastRecentlyUsedCycle[index][associativityIndex] = this.processor.getInstructionCycleNumber() + message.cycleDelay;
 				}
-				this.message = null;
 				break;
 			case INVALIDATE:
 				//address not found, don't care
@@ -267,6 +275,9 @@ public class Cache {
 				this.state[index][associativityIndex].busWrite();
 				//send return message if you have it
 				this.prepareMessage(message.memoryAddress, MessageType.ACKNOWLEDGED_PREV_MESSAGE, message.cycleDelay);
+				break;
+			case WRITE_BACK:
+				//ignore
 				break;
 			default:
 				throw new UnsupportedOperationException("Message Type is not handled.");
