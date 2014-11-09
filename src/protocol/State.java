@@ -327,4 +327,14 @@ public class State
 			}
 		}
 	}
+	
+	public boolean isInvalid()
+	{
+		return this.state == MSI.INVALID || this.state == MESI.INVALID;
+	}
+	
+	public boolean isExclusive()
+	{
+		return this.state == MSI.MODIFIED || this.state == MESI.MODIFIED || this.state == MESI.EXCLUSIVE;
+	}
 }

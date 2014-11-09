@@ -30,6 +30,7 @@ public class Processor
 	 */
 	public boolean parseInstruction(String instruction)
 	{
+		//TODO check if tabs are the delimiter or not
 		String[] tokens = instruction.trim().split("\t");
 		if(Integer.parseInt(tokens[1]) == this.processorNumber)
 		{
