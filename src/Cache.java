@@ -24,7 +24,7 @@ public class Cache {
 	private final State[][] state;
 	private final int[][] leastRecentlyUsedCycle;
 
-	public Cache(int cache_size, int associativity, int block_size, boolean protocolIsMSI, int l1MissPenalty, int l2MissPenalty)
+	public Cache(int cache_size, int associativity, int block_size, boolean protocolIsMSI)
 	{
 		// initialize counters
 		this.numWriteHit = 0;

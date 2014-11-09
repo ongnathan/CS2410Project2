@@ -1,6 +1,12 @@
 // this could be cache or L2
 
-public class Memory {
+public class Memory extends Cache {
+
+	public Memory(int cache_size, int associativity, int block_size, boolean protocolIsMSI)
+	{
+		super(cache_size, associativity, block_size, protocolIsMSI);
+		// TODO Auto-generated constructor stub
+	}
 
 	static int MEMORYSIZE; // memory or L2 size
 	int[] data;
