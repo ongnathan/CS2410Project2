@@ -1,5 +1,5 @@
 package memory;
-import processor.Processor;
+import processor.*;
 import protocol.State;
 import snoopingBus.Message;
 import snoopingBus.MessageType;
@@ -46,7 +46,6 @@ public class Cache {
 		this.cacheSize = cacheSize; // we need to specify the initial values of the cache in KB
 		this.associativity = associativity;
 		this.blockSize = blockSize; // here too in byte
-		
 		this.processor = new Processor();
 		
 		int numCacheLines = (cacheSize * 1024 / blockSize) / this.associativity;
@@ -267,6 +266,8 @@ public class Cache {
 	public Message getOutgoingMessage()
 	{
 		Message message = this.outGoingMessage;
+		if(message = null)
+			return null;
 		if(this.outGoingMessage.type == MessageType.WANT_TO_READ || this.outGoingMessage.type == MessageType.WANT_TO_WRITE)
 		{
 			this.referenceMessage = message;
@@ -341,7 +342,7 @@ public class Cache {
 				//address not found, don't care
 				if(associativityIndex == this.associativity || this.state[index][associativityIndex].isInvalid())
 				{
-					return;
+					return true;
 				}
 				this.state[index][associativityIndex].busInvalidate();
 				//invalidate it if it exists
@@ -350,7 +351,7 @@ public class Cache {
 				//address not found, don't care
 				if(associativityIndex == this.associativity || this.state[index][associativityIndex].isInvalid())
 				{
-					return;
+					return true;
 				}
 				
 				//make it shared if you have it
@@ -373,7 +374,7 @@ public class Cache {
 				//address not found, don't care
 				if(associativityIndex == this.associativity || this.state[index][associativityIndex].isInvalid())
 				{
-					return;
+					return true;
 				}
 				
 				//no need a write back here because the next guy is going to have it and it will be modified on his end.
