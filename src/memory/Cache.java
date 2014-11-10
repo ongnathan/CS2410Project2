@@ -204,7 +204,7 @@ public class Cache {
 	 */
 	public boolean runInstruction(String instruction, int delaySinceIssuing)
 	{
-		if(this.outGoingMessage != null || !this.processor.parseInstruction(instruction))
+		if(this.referenceMessage != null || this.outGoingMessage != null || !this.processor.parseInstruction(instruction))
 		{
 			return false;
 		}
