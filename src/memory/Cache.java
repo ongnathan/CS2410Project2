@@ -275,13 +275,15 @@ public class Cache {
 		return message;
 	}
 	
+	//made a change to return boolean!
 	/**
 	 * The bus should call this method to give any message to this processor.
 	 * @param message The message that needs to be read by this processor.
 	 * @param currentCycleTime The cycle time of the incoming message.
 	 */
-	public void setAndProcessIncomingMessage(Message message, int currentCycleTime)
+	public boolean setAndProcessIncomingMessage(Message message, int currentCycleTime)
 	{
+		boolean found = true;
 		//find location in cache
 		int index = (int)(message.memoryAddress / blockSize) % this.cache.length;
 		int associativityIndex = -1;
@@ -295,6 +297,7 @@ public class Cache {
 				//process message
 				if(message.memoryAddress != this.referenceMessage.memoryAddress)
 				{
+					found = false;
 					//not pertinent information
 					break;
 				}
@@ -389,5 +392,6 @@ public class Cache {
 			default:
 				throw new UnsupportedOperationException("Message Type is not handled.");
 		}
+		return found;
 	}
 }
