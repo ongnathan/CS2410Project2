@@ -266,7 +266,7 @@ public class Cache {
 	public Message getOutgoingMessage()
 	{
 		Message message = this.outGoingMessage;
-		if(message = null)
+		if(message == null)
 			return null;
 		if(this.outGoingMessage.type == MessageType.WANT_TO_READ || this.outGoingMessage.type == MessageType.WANT_TO_WRITE)
 		{
