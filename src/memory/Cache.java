@@ -221,13 +221,13 @@ public class Cache {
 			{
 				//read miss
 				this.numReadMiss++;
-				this.prepareMessage(address, MessageType.WANT_TO_READ, delaySinceIssuing);
+				this.prepareMessage(address, MessageType.WANT_TO_READ, this.processor.getInstructionCycleNumber()+delaySinceIssuing);
 			}
 			else
 			{
 				//write miss
 				this.numWriteMiss++;
-				this.prepareMessage(address, MessageType.WANT_TO_WRITE, delaySinceIssuing);
+				this.prepareMessage(address, MessageType.WANT_TO_WRITE, this.processor.getInstructionCycleNumber()+delaySinceIssuing);
 			}
 		}
 		else
@@ -251,7 +251,7 @@ public class Cache {
 				//write hit but need to invalidate everyone else
 				if(!this.state[index][associativityIndex].isExclusive())
 				{
-					this.prepareMessage(address, MessageType.INVALIDATE, 0);
+					this.prepareMessage(address, MessageType.INVALIDATE, this.processor.getInstructionCycleNumber()+delaySinceIssuing);
 				}
 			}
 		}
