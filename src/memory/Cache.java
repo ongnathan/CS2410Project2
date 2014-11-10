@@ -296,6 +296,8 @@ public class Cache {
 			//if we are expecting this, then we are adding a new address to the cache
 			case ACKNOWLEDGED_PREV_MESSAGE:
 				//process message
+				if(this.referenceMessage == null)
+					return false;
 				if(message.memoryAddress != this.referenceMessage.memoryAddress)
 				{
 					found = false;
