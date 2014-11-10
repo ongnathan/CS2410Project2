@@ -20,7 +20,8 @@ public class Cache {
 	
 	private final Processor processor;
 	
-	protected Message message;
+	protected Message outGoingMessage;
+	protected Message referenceMessage;
 
 	protected final long[][] cache;
 	protected final State[][] state;
@@ -62,7 +63,8 @@ public class Cache {
 			}
 		}
 		
-		this.message = null;
+		this.outGoingMessage = null;
+		this.referenceMessage = null;
 	}
 	
 	/**
@@ -83,7 +85,7 @@ public class Cache {
 //		{
 //			this.message = new Message(address, type, issueTime+1); //FIXME no delay?
 //		}
-		this.message = new Message(address, type, issueTime);
+		this.outGoingMessage = new Message(address, type, issueTime);
 	}
 	
 	/**
@@ -202,7 +204,7 @@ public class Cache {
 	 */
 	public boolean runInstruction(String instruction, int delaySinceIssuing)
 	{
-		if(this.message != null || !this.processor.parseInstruction(instruction))
+		if(this.outGoingMessage != null || !this.processor.parseInstruction(instruction))
 		{
 			return false;
 		}
@@ -264,11 +266,12 @@ public class Cache {
 	 */
 	public Message getOutgoingMessage()
 	{
-		Message message = this.message;
-		if(this.message.type == MessageType.INVALIDATE || this.message.type == MessageType.ACKNOWLEDGED_PREV_MESSAGE || this.message.type == MessageType.WRITE_BACK)
+		Message message = this.outGoingMessage;
+		if(this.outGoingMessage.type == MessageType.WANT_TO_READ || this.outGoingMessage.type == MessageType.WANT_TO_WRITE)
 		{
-			this.message = null;
+			this.referenceMessage = message;
 		}
+		this.outGoingMessage = null;
 		return message;
 	}
 	
@@ -290,7 +293,7 @@ public class Cache {
 			//if we are expecting this, then we are adding a new address to the cache
 			case ACKNOWLEDGED_PREV_MESSAGE:
 				//process message
-				if(message.memoryAddress != this.message.memoryAddress)
+				if(message.memoryAddress != this.referenceMessage.memoryAddress)
 				{
 					//not pertinent information
 					break;
@@ -301,18 +304,17 @@ public class Cache {
 					if(this.cache[index][j] == -1L)
 					{
 						this.cache[index][j] = message.memoryAddress - (message.memoryAddress % this.blockSize);
-						if(this.message.type == MessageType.WANT_TO_READ)
+						if(this.referenceMessage.type == MessageType.WANT_TO_READ)
 						{
 							this.state[index][j].processorRead();
 						}
-						else if(this.message.type == MessageType.WANT_TO_WRITE)
+						else if(this.referenceMessage.type == MessageType.WANT_TO_WRITE)
 						{
 							this.state[index][j].processorWrite();
 						}
 						this.leastRecentlyUsedCycle[index][j] = currentCycleTime;
 						emptySpaceFound = true;
 					}
-					this.message = null;
 				}
 				//need to evict if no empty space available
 				if(!emptySpaceFound)
@@ -320,16 +322,17 @@ public class Cache {
 					associativityIndex = this.evict(message.memoryAddress, index);
 					
 					this.state[index][associativityIndex].busInvalidate();
-					if(this.message.type == MessageType.WANT_TO_READ)
+					if(this.referenceMessage.type == MessageType.WANT_TO_READ)
 					{
 						this.state[index][associativityIndex].processorRead();
 					}
-					else if(this.message.type == MessageType.WANT_TO_WRITE)
+					else if(this.referenceMessage.type == MessageType.WANT_TO_WRITE)
 					{
 						this.state[index][associativityIndex].processorWrite();
 					}
 					this.leastRecentlyUsedCycle[index][associativityIndex] = currentCycleTime;
 				}
+				this.referenceMessage = null;
 				break;
 			case INVALIDATE:
 				//address not found, don't care

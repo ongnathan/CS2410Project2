@@ -46,7 +46,7 @@ public class Memory extends Cache
 	{
 		int evictedAssociativityIndex = super.evict(address, index);
 		//no one is going to read the write back stuff, just steal the message away
-		this.message = null;
+		this.outGoingMessage = null;
 		return evictedAssociativityIndex;
 	}
 	
@@ -67,7 +67,7 @@ public class Memory extends Cache
 	{
 		Message message = super.getOutgoingMessage();
 		//the L2 cache never listens for return messages
-		this.message = null;
+		this.referenceMessage = null;
 		return message;
 	}
 	
