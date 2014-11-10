@@ -10,7 +10,7 @@ public class Processor
 	private static int processorNumberCounter = 0;
 	public final int processorNumber;
 	
-	private int cycleNumber;
+	public int cycleNumber;
 	private boolean isWriteCommand;
 	private long address;
 	
@@ -32,13 +32,14 @@ public class Processor
 	{
 		//TODO check if tabs are the delimiter or not
 		String[] tokens = instruction.trim().split("\t");
-		if(Integer.parseInt(tokens[1]) == this.processorNumber)
+		if(Integer.parseInt(tokens[1]) != this.processorNumber)
 		{
 			return false;
 		}
 		this.cycleNumber = Integer.parseInt(tokens[0]);
 		this.isWriteCommand = Integer.parseInt(tokens[2]) == 1;
-		this.address = Long.parseLong(tokens[3], 16);
+		//
+		this.address = Long.parseLong(tokens[3].substring(2,tokens[3].length()), 16);
 		return true;
 	}
 	

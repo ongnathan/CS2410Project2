@@ -1,5 +1,5 @@
 package memory;
-import processor.Processor;
+import processor.*;
 import protocol.State;
 import snoopingBus.Message;
 import snoopingBus.MessageType;
@@ -46,7 +46,6 @@ public class Cache {
 		this.cacheSize = cacheSize; // we need to specify the initial values of the cache in KB
 		this.associativity = associativity;
 		this.blockSize = blockSize; // here too in byte
-		
 		this.processor = new Processor();
 		
 		int numCacheLines = (cacheSize * 1024 / blockSize) / this.associativity;
@@ -267,6 +266,8 @@ public class Cache {
 	public Message getOutgoingMessage()
 	{
 		Message message = this.outGoingMessage;
+		if(message == null)
+			return null;
 		if(this.outGoingMessage.type == MessageType.WANT_TO_READ || this.outGoingMessage.type == MessageType.WANT_TO_WRITE)
 		{
 			this.referenceMessage = message;
@@ -275,13 +276,15 @@ public class Cache {
 		return message;
 	}
 	
+	//made a change to return boolean!
 	/**
 	 * The bus should call this method to give any message to this processor.
 	 * @param message The message that needs to be read by this processor.
 	 * @param currentCycleTime The cycle time of the incoming message.
 	 */
-	public void setAndProcessIncomingMessage(Message message, int currentCycleTime)
+	public boolean setAndProcessIncomingMessage(Message message, int currentCycleTime)
 	{
+		boolean found = true;
 		//find location in cache
 		int index = (int)(message.memoryAddress / blockSize) % this.cache.length;
 		int associativityIndex = -1;
@@ -293,8 +296,11 @@ public class Cache {
 			//if we are expecting this, then we are adding a new address to the cache
 			case ACKNOWLEDGED_PREV_MESSAGE:
 				//process message
+				if(this.referenceMessage == null)
+					return false;
 				if(message.memoryAddress != this.referenceMessage.memoryAddress)
 				{
+					found = false;
 					//not pertinent information
 					break;
 				}
@@ -338,7 +344,7 @@ public class Cache {
 				//address not found, don't care
 				if(associativityIndex == this.associativity || this.state[index][associativityIndex].isInvalid())
 				{
-					return;
+					return true;
 				}
 				this.state[index][associativityIndex].busInvalidate();
 				//invalidate it if it exists
@@ -347,7 +353,7 @@ public class Cache {
 				//address not found, don't care
 				if(associativityIndex == this.associativity || this.state[index][associativityIndex].isInvalid())
 				{
-					return;
+					return true;
 				}
 				
 				//make it shared if you have it
@@ -370,7 +376,7 @@ public class Cache {
 				//address not found, don't care
 				if(associativityIndex == this.associativity || this.state[index][associativityIndex].isInvalid())
 				{
-					return;
+					return true;
 				}
 				
 				//no need a write back here because the next guy is going to have it and it will be modified on his end.
@@ -389,5 +395,6 @@ public class Cache {
 			default:
 				throw new UnsupportedOperationException("Message Type is not handled.");
 		}
+		return found;
 	}
 }

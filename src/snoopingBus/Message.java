@@ -27,4 +27,8 @@ public class Message
 		this.secondaryType = secondaryType;
 		this.issueCycleTime = cycleDelay;
 	}
+	public String toString()
+	{
+		return messageNumber + "\n" + memoryAddress + "\n" + type + "\n" + secondaryType + "\n" + issueCycleTime;
+	}
 }
