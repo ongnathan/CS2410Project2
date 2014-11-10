@@ -31,7 +31,7 @@ public class Cache {
 	 * @param cacheSize How big is the cache in KB?
 	 * @param associativity What is the associativity factor of the cache?
 	 * @param blockSize What is the block size in B?
-	 * @param protocolIsMSI Is the protcol MSI or not?  (If it isn't, it's MESI)
+	 * @param protocolIsMSI Is the protocol MSI or not?  (If it isn't, it's MESI)
 	 */
 	public Cache(int cacheSize, int associativity, int blockSize, boolean protocolIsMSI)
 	{
