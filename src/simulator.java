@@ -89,6 +89,7 @@ public class simulator
 		int numMessages = 0;
 		while(!allCoresDone() || !bus.isEmpty())
 		{
+			Thread.sleep(1000);
 			if(debug && k < 4)
 				System.out.println("Debugging Information for cycle: " + cycle + "\n\n-----------------------------------\n\n");
 			//for each core that has a non null entry in the currentRequests array, add one to every following instructions
@@ -114,6 +115,11 @@ public class simulator
 						Message response = caches.get(i).getOutgoingMessage();
 						if(response!=null) //then we have the block, so we can simply give it to the cache or might need to write back
 						{
+							if(debug && k < 4)
+							{
+								System.out.println("Core " + whichCore.get(currentMessage) + " " + currentMessage.type + ", and block was found in cache " + i);
+								System.out.println("Sending Response to the bus");
+							}
 							found = true;
 							bus.add(response);
 							whichCore.put(response,i);
@@ -122,7 +128,24 @@ public class simulator
 					}
 					if(!found) //miss, need to go to memory
 					{
-						memory.setAndProcessIncomingMessage(currentMessage,cycle);
+						if(debug && k < 4)
+						{
+							System.out.println("Core " + whichCore.get(currentMessage) + " " + currentMessage.type + " at location " + currentMessage.memoryAddress + " and block was not found (miss) ");
+						}
+						if(memory.setAndProcessIncomingMessage(currentMessage,cycle))
+						{
+							if(debug  && k<4)
+							{
+								System.out.println("Core " + whichCore.get(currentMessage) + " " + currentMessage.type + " at location " + currentMessage.memoryAddress + " and cache hit in memory" );
+							}
+						}
+						else
+						{
+							if(debug && k<4)
+							{
+								System.out.println("Core " + whichCore.get(currentMessage) + " " + currentMessage.type + " at location " + currentMessage.memoryAddress + " and cache miss in memory" );
+							}
+						}
 						Message memResponse = memory.getOutgoingMessage();
 						if(whichCore.containsKey(currentMessage))
 						{
@@ -132,6 +155,8 @@ public class simulator
 							numMiss[currCore]++;
 							timeMiss[currCore] = timeMiss[currCore] + finalTime-originalTime;
 						}
+						if(debug && k <4)
+							System.out.println("Sending response to bus");
 						bus.add(memResponse);
 						whichCore.put(memResponse,-1);
 						numMessages++;
@@ -140,18 +165,33 @@ public class simulator
 				} //Now, need to check ACKNOWLEDGE PREVIOUS, WRITE  BACK, INVALIDATE
 				else if(currentMessage.type == MessageType.INVALIDATE)
 				{
+
 					int skip = -1; 
 					if(whichCore.containsKey(currentMessage))
 						skip = whichCore.get(currentMessage);
+					if(debug && k <4)
+						System.out.println("Invalidating Messages for address " + currentMessage.memoryAddress + " from core " + skip );
 					for(int i = 0; i < P ; i++)
 					{
 						if(i!=skip)
-							caches.get(i).setAndProcessIncomingMessage(currentMessage,cycle);
+						{
+							if(!caches.get(i).setAndProcessIncomingMessage(currentMessage,cycle))
+							{
+								if(debug && k<4)
+									System.out.println("Block: " + currentMessage.memoryAddress + " was invalidated for core " + i);
+							}
+						}
 					}
-					memory.setAndProcessIncomingMessage(currentMessage,cycle);
+					if(!memory.setAndProcessIncomingMessage(currentMessage,cycle))
+					{
+						if(debug && k <4)
+							System.out.println("Block: " + currentMessage.memoryAddress + " was invalidated for L2 by core " + whichCore.get(currentMessage));
+					}
 				}
 				else if(currentMessage.type == MessageType.WRITE_BACK)
 				{
+					if(debug && k < 4)
+						System.out.println("Block: " + currentMessage.memoryAddress + " was written back to memory " );
 					memory.setAndProcessIncomingMessage(currentMessage,cycle);
 				}
 				else //message type must be a ACKNOWLEDGE
@@ -159,6 +199,8 @@ public class simulator
 					if(currentMessage.secondaryType == MessageType.WRITE_BACK) //memory needs to do a write back
 					{
 						memory.setAndProcessIncomingMessage(currentMessage,cycle);
+						if(debug && k < 4)
+							System.out.println("Block: " + currentMessage.memoryAddress + " was written back to memory " ); 
 					}
 					if(currentMessage.issueCycleTime < cycle) //pay the proper penalties
 					{
@@ -166,6 +208,13 @@ public class simulator
 						{
 							if(caches.get(i).setAndProcessIncomingMessage(currentMessage,cycle)) //this processor can move on
 							{
+								if(debug && k < 4)
+								{
+									if(whichCore.get(currentMessage) > -1)
+										System.out.println("Core " + i + " acknowledges the previous message from processor " + whichCore.get(currentMessage));
+									else
+										System.out.println("Core " + i + " acknowledges the previous message from memory");
+								}
 								//can generate a write back here
 								instruction iii = currentRequests[i];
 								instructionsLeft.get(iii.coreID).remove(iii);
@@ -173,6 +222,7 @@ public class simulator
 								Message now = caches.get(i).getOutgoingMessage();
 								if(now!=null)
 								{
+									System.out.println("And a write back request was generated and placed on the bus " );
 									bus.add(now);
 									whichCore.put(now,i);
 									numMessages++;
@@ -182,7 +232,10 @@ public class simulator
 						}
 					}
 					else
+					{
+						System.out.println("weren't ready for the current message, getting the next one");
 						satisfied = false;
+					}
 				}
 				if(!satisfied)
 					count++;
@@ -215,15 +268,25 @@ public class simulator
 						else
 						{
 							currentRequests[j.coreID] = j;
-							System.out.println("I am here processing " + j + "\n" + "this request");
+							if(debug && k < 4)
+							{
+								if(j.isRead)
+									System.out.println("Core: " + j.coreID + " issues a request of read to memory address " + j.address + ", which had original time: " + j.originalCycleTime);
+								else
+									System.out.println("Core: " + j.coreID + " issues a request of write to memory address " + j.address + ", which had original time: " + j.originalCycleTime);
+							}
 							Message curr = caches.get(j.coreID).getOutgoingMessage();
 							if(curr == null) //then the request is satisfied so we can remove the request and no message need be sent
 							{
+								if(debug && k < 4)
+									System.out.println("This was a hit");
 								instructionsLeft.get(j.coreID).remove(j);
 								currentRequests[j.coreID] = null;
 							}
 							else if(curr.type == MessageType.INVALIDATE) //write hit, so we done with this, BIG QUESTION (Can we continue while invalidate is on bus)
 							{
+								if(debug && k<4)
+									System.out.println("Write hit: sending invalidate message to the bus");
 								instructionsLeft.get(j.coreID).remove(j);
 								currentRequests[j.coreID] = null;
 								bus.add(curr);
@@ -232,6 +295,8 @@ public class simulator
 							}
 							else //can't remove request until its message is satisfied by the bus
 							{
+								if(debug && k < 4)
+									System.out.println("Miss: sending request to the bus");
 								bus.add(curr);
 								whichCore.put(curr,j.coreID);
 								numMessages++;
