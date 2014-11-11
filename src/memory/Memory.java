@@ -1,5 +1,9 @@
 package memory;
 
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+
 import snoopingBus.Message;
 import snoopingBus.MessageType;
 
@@ -13,6 +17,7 @@ public class Memory extends Cache
 	private final int numberOfBanks;
 	
 	private final int[] bankFreeAtCycle;
+	private final List<List<Message>> addressesBeingRetrieved;
 	
 	/**
 	 * The constructor.  Same as Cache, except with added fields of hit and miss penalties.
@@ -30,6 +35,11 @@ public class Memory extends Cache
 		this.missPenalty = missPenalty;
 		this.numberOfBanks = numberOfBanks;
 		this.bankFreeAtCycle = new int[this.numberOfBanks];
+		this.addressesBeingRetrieved = new ArrayList<List<Message>>();
+		for(int i = 0; i < this.numberOfBanks; i++)
+		{
+			this.addressesBeingRetrieved.add(new LinkedList<Message>());
+		}
 //		this.bankQueues = new ArrayList<Queue<Message>>();
 //		for(int i = 0; i < this.numberOfBanks; i++)
 //		{
@@ -79,6 +89,8 @@ public class Memory extends Cache
 	@Override
 	public boolean setAndProcessIncomingMessage(Message message, int currentCycleTime)
 	{
+		//update bank queues
+		this.updateBankQueues(currentCycleTime);
 		//we have to handle it differently
 		int index = (int)(message.memoryAddress / blockSize) % this.cache.length;
 		//TODO check if this is correct
@@ -126,6 +138,16 @@ public class Memory extends Cache
 				break;
 			case WANT_TO_READ:
 				//address not found, need to get it from "memory"
+				if(this.addressInQueue(bankNumber, message.memoryAddress))
+				{
+					if(currentCycleTime < this.bankFreeAtCycle[bankNumber])
+					{
+						currentCycleTime = this.bankFreeAtCycle[bankNumber];
+					}
+					this.bankFreeAtCycle[bankNumber] = currentCycleTime + this.hitPenalty;
+					this.prepareMessage(message.memoryAddress, MessageType.ACKNOWLEDGED_PREV_MESSAGE, this.bankFreeAtCycle[bankNumber]);
+					return true;
+				}
 				if(associativityIndex == this.associativity || this.state[index][associativityIndex].isInvalid())
 				{
 					hit = false;
@@ -144,11 +166,10 @@ public class Memory extends Cache
 					{
 						associativityIndex = this.evict(message.memoryAddress, index);
 					}
-					this.cache[index][associativityIndex] = message.memoryAddress;
-					this.state[index][associativityIndex].processorRead();
+					this.cache[index][associativityIndex] = message.memoryAddress - (message.memoryAddress % this.blockSize);
+					this.addressesBeingRetrieved.get(bankNumber).add(new Message(message, (hit ? this.hitPenalty : this.missPenalty)));
+					this.state[index][associativityIndex].processorExclusiveRead();
 				}
-				//make it shared once you have it
-				this.state[index][associativityIndex].busRead();
 				
 				if(currentCycleTime < this.bankFreeAtCycle[bankNumber])
 				{
@@ -156,11 +177,33 @@ public class Memory extends Cache
 				}
 				this.bankFreeAtCycle[bankNumber] = currentCycleTime + (hit ? this.hitPenalty : this.missPenalty);
 				this.leastRecentlyUsedCycle[index][associativityIndex] = this.bankFreeAtCycle[bankNumber];
+				
 				//send return message if you have it
-				this.prepareMessage(message.memoryAddress, MessageType.ACKNOWLEDGED_PREV_MESSAGE, MessageType.RETURNING_EXCLUSIVE, this.bankFreeAtCycle[bankNumber]);
+				if(this.state[index][associativityIndex].isExclusive())
+				{
+					this.prepareMessage(message.memoryAddress, MessageType.ACKNOWLEDGED_PREV_MESSAGE, MessageType.RETURNING_EXCLUSIVE, this.bankFreeAtCycle[bankNumber]);
+				}
+				else
+				{
+					this.prepareMessage(message.memoryAddress, MessageType.ACKNOWLEDGED_PREV_MESSAGE, this.bankFreeAtCycle[bankNumber]);
+				}
+				
+				//make it shared once you have it
+				this.state[index][associativityIndex].busRead();
+				
 				break;
 			case WANT_TO_WRITE:
 				//address not found, need to get it from "memory"
+				if(this.addressInQueue(bankNumber, message.memoryAddress))
+				{
+					if(currentCycleTime < this.bankFreeAtCycle[bankNumber])
+					{
+						currentCycleTime = this.bankFreeAtCycle[bankNumber];
+					}
+					this.bankFreeAtCycle[bankNumber] = currentCycleTime + (hit ? this.hitPenalty : this.missPenalty);
+					this.prepareMessage(message.memoryAddress, MessageType.ACKNOWLEDGED_PREV_MESSAGE, this.bankFreeAtCycle[bankNumber]);
+					return true;
+				}
 				if(associativityIndex == this.associativity || this.state[index][associativityIndex].isInvalid())
 				{
 					hit = false;
@@ -179,7 +222,8 @@ public class Memory extends Cache
 					{
 						associativityIndex = this.evict(message.memoryAddress, index);
 					}
-					this.cache[index][associativityIndex] = message.memoryAddress;
+					this.cache[index][associativityIndex] = message.memoryAddress - (message.memoryAddress % this.blockSize);
+					this.addressesBeingRetrieved.get(bankNumber).add(new Message(message, (hit ? this.hitPenalty : this.missPenalty)));
 					this.state[index][associativityIndex].processorRead();
 				}
 				//make it invalid if you have it
@@ -218,5 +262,36 @@ public class Memory extends Cache
 				throw new UnsupportedOperationException("Message Type is not handled.");
 		}
 		return true;
+	}
+	
+	private boolean addressInQueue(int bankNumber, long memoryAddress)
+	{
+		List<Message> bankQueue = this.addressesBeingRetrieved.get(bankNumber);
+		memoryAddress -= (memoryAddress % this.blockSize);
+		for(int i = 0; i < bankQueue.size(); i++)
+		{
+			if(memoryAddress == bankQueue.get(i).memoryAddress)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	private void updateBankQueues(int currentCycleTime)
+	{
+		for(int i = 0; i < this.numberOfBanks; i++)
+		{
+			List<Message> bankQueue = this.addressesBeingRetrieved.get(i);
+			ArrayList<Message> toRemove = new ArrayList<Message>();
+			for(int j = 0; j < bankQueue.size(); j++)
+			{
+				if(bankQueue.get(j).issueCycleTime > currentCycleTime)
+				{
+					toRemove.add(bankQueue.get(j));
+				}
+			}
+			bankQueue.removeAll(toRemove);
+		}
 	}
 }

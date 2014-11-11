@@ -247,13 +247,13 @@ public class Cache {
 			{
 				//write hit
 				this.numWriteHit++;
-				this.state[index][associativityIndex].processorWrite();
 				
 				//write hit but need to invalidate everyone else
 				if(!this.state[index][associativityIndex].isExclusive())
 				{
 					this.prepareMessage(address, MessageType.INVALIDATE, this.processor.getInstructionCycleNumber()+delaySinceIssuing);
 				}
+				this.state[index][associativityIndex].processorWrite();
 			}
 		}
 		return true;

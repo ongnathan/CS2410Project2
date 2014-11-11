@@ -10,12 +10,17 @@ public class Message
 	public final MessageType secondaryType;
 	public final int issueCycleTime;
 	
+	public Message(Message oldMessage, int cycleTimeDelay)
+	{
+		this(oldMessage.memoryAddress, oldMessage.type, oldMessage.secondaryType, oldMessage.issueCycleTime + cycleTimeDelay);
+	}
+	
 	public Message(long memoryAddress, MessageType type, int issueCycleTime)
 	{
 		this(memoryAddress, type, null, issueCycleTime);
 	}
 	
-	public Message(long memoryAddress, MessageType type, MessageType secondaryType, int cycleDelay)
+	public Message(long memoryAddress, MessageType type, MessageType secondaryType, int issueCycleTime)
 	{
 		synchronized(messageNumberCounter)
 		{
@@ -25,7 +30,7 @@ public class Message
 		this.memoryAddress = memoryAddress;
 		this.type = type;
 		this.secondaryType = secondaryType;
-		this.issueCycleTime = cycleDelay;
+		this.issueCycleTime = issueCycleTime;
 	}
 	public String toString()
 	{
