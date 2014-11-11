@@ -76,7 +76,7 @@ public class Cache {
 	 */
 	protected void prepareMessage(long address, MessageType type, MessageType secondaryType, int issueTime)
 	{
-		if(secondaryType != MessageType.WRITE_BACK && secondaryType != null)
+		if(secondaryType != MessageType.WRITE_BACK && secondaryType != MessageType.RETURNING_EXCLUSIVE && secondaryType != null)
 		{
 			throw new UnsupportedOperationException("Secondary Message type must be a write back");
 		}
