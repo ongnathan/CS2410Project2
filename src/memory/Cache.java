@@ -68,13 +68,13 @@ public class Cache {
 	
 	/**
 	 * Prepares a message for the bus.
-	 * (Private method, so no need to worry about this one).
+	 * (Protected method, so no need to worry about this one).
 	 * @param address The address you are referencing.
 	 * @param type What type of message is it?  See the MessageType class.
 	 * @param secondaryType Is there another type?  Usually this is only for WRITE_BACK.
 	 * @param issueTime When was this message issued?
 	 */
-	private void prepareMessage(long address, MessageType type, MessageType secondaryType, int issueTime)
+	protected void prepareMessage(long address, MessageType type, MessageType secondaryType, int issueTime)
 	{
 		if(secondaryType != MessageType.WRITE_BACK && secondaryType != null)
 		{
@@ -312,7 +312,14 @@ public class Cache {
 						this.cache[index][j] = message.memoryAddress - (message.memoryAddress % this.blockSize);
 						if(this.referenceMessage.type == MessageType.WANT_TO_READ)
 						{
-							this.state[index][j].processorRead();
+							if(message.secondaryType == MessageType.RETURNING_EXCLUSIVE)
+							{
+								this.state[index][j].processorExclusiveRead();
+							}
+							else
+							{
+								this.state[index][j].processorRead();
+							}
 						}
 						else if(this.referenceMessage.type == MessageType.WANT_TO_WRITE)
 						{
@@ -330,7 +337,14 @@ public class Cache {
 					this.state[index][associativityIndex].busInvalidate();
 					if(this.referenceMessage.type == MessageType.WANT_TO_READ)
 					{
-						this.state[index][associativityIndex].processorRead();
+						if(message.secondaryType == MessageType.RETURNING_EXCLUSIVE)
+						{
+							this.state[index][associativityIndex].processorExclusiveRead();
+						}
+						else
+						{
+							this.state[index][associativityIndex].processorRead();
+						}
 					}
 					else if(this.referenceMessage.type == MessageType.WANT_TO_WRITE)
 					{

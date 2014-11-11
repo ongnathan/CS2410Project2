@@ -157,7 +157,7 @@ public class Memory extends Cache
 				this.bankFreeAtCycle[bankNumber] = currentCycleTime + (hit ? this.hitPenalty : this.missPenalty);
 				this.leastRecentlyUsedCycle[index][associativityIndex] = this.bankFreeAtCycle[bankNumber];
 				//send return message if you have it
-				this.prepareMessage(message.memoryAddress, MessageType.ACKNOWLEDGED_PREV_MESSAGE, this.bankFreeAtCycle[bankNumber]);
+				this.prepareMessage(message.memoryAddress, MessageType.ACKNOWLEDGED_PREV_MESSAGE, MessageType.RETURNING_EXCLUSIVE, this.bankFreeAtCycle[bankNumber]);
 				break;
 			case WANT_TO_WRITE:
 				//address not found, need to get it from "memory"
