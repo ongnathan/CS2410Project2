@@ -6,6 +6,7 @@ import snoopingBus.*;
 public class simulator
 {
 	static int P,n1,n2,k,a1,a2,B,d2,dm,s;
+	static boolean debug;
 	static ArrayList<instruction> requests; //holds instructions by processor
 	static HashMap<Message,Integer> whichCore; //tells which core the message came from
 	static instruction [] currentRequests;
@@ -46,6 +47,7 @@ public class simulator
 		bus = new ArrayList<Message>();
 		File file = new File(args[0]);
 		Scanner input = new Scanner(file);
+		debug = false;
 		loadParameters(input);
 		coreDelay = new int[P];
 		timeMiss = new int [P];
@@ -87,23 +89,8 @@ public class simulator
 		int numMessages = 0;
 		while(!allCoresDone() || !bus.isEmpty())
 		{
-			if(cycle%15000 == 0)
-			{
-				System.out.println(bus);
-			}
-			//System.out.println("-----------------");
-			//System.out.println(instructionsLeft);
-		
-			/*if(instructionsLeft.size() % 1000 == 0)
-				System.out.println(instructionsLeft.size());
-				printer.println(cycle);
-				printer.println("The bus is: \n--------------------\n\n\n");
-				printer.println(bus);
-				printer.println("The remaining instructions are: \n\n" + instructionsLeft); 
-				printer.println("And the current Requests are: \n\n\n");
-				printer.println(Arrays.toString(currentRequests));
-			*/
-			//System.out.println(whichCore);
+			if(debug && k < 4)
+				System.out.println("Debugging Information for cycle: " + cycle + "\n\n-----------------------------------\n\n");
 			//for each core that has a non null entry in the currentRequests array, add one to every following instructions
 			boolean satisfied = false;
 			int count = 0;
@@ -228,7 +215,7 @@ public class simulator
 						else
 						{
 							currentRequests[j.coreID] = j;
-							//System.out.println("I am here processing " + j + "\n" + "this request");
+							System.out.println("I am here processing " + j + "\n" + "this request");
 							Message curr = caches.get(j.coreID).getOutgoingMessage();
 							if(curr == null) //then the request is satisfied so we can remove the request and no message need be sent
 							{
@@ -265,8 +252,14 @@ public class simulator
 			cycle++;
 		}
 		
-		System.out.println(Arrays.toString(timeDone));
+		System.out.println("The total number of cycles was: " + cycle);
+		for(int i = 0; i < P; i++)
+		{
+			System.out.println("Core " + i + " finished executing at time " + timeDone[i]);
+		}
 		int counter = 0;
+		int sum = 0;
+		int hitSum = 0;
 		for(Cache c: caches)
 		{
 			int total = c.getNumReadHits()+c.getNumWriteHits()+c.getNumReadMiss()+c.getNumWriteMiss();
@@ -274,14 +267,17 @@ public class simulator
 			if(total == 0)
 				System.out.println("For core " + counter + ", there were no hits or misses " );
 			else
-				System.out.println("For core " + counter + ", the hit rate was " + (double)hits/(double)total);
+				System.out.println("For core " + counter + ", the hit rate was " + hits + "/" + total + " = " + (double)hits/(double)total);
 			counter++;
+			sum = sum + total;
+			hitSum = hitSum + hits;
 		}
+		System.out.println("The overall hit rate was " + hitSum + "/" + sum + " = " + (double)hitSum/(double)sum);
 		System.out.println("\n----------------------------------------------");
 		for(int i = 0; i < P ;i++)
 		{
 			if(numMiss[i]!=0)
-				System.out.println("The average miss penalty at core " + i + " is " + (double)timeMiss[i]/(double)numMiss[i]);
+				System.out.println("The average miss penalty at core " + i + " is " + timeMiss[i] + "/" + numMiss[i] + " = " + (double)timeMiss[i]/(double)numMiss[i]);
 			else
 				System.out.println("Core " + i + " did not have any L1 cache misses" );
 		}
@@ -335,9 +331,8 @@ public class simulator
 					break;
 				case "s" : s = Integer.parseInt(splitLine[1]);
 					break;
+				case "debug" : debug = true;
 			}
-			
-			
 		}
 	}
 }
