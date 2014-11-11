@@ -225,7 +225,8 @@ public class simulator
 								Message now = caches.get(i).getOutgoingMessage();
 								if(now!=null)
 								{
-									System.out.println("And a write back request was generated and placed on the bus " );
+									if(debug && k < 4)
+										System.out.println("And a write back request was generated and placed on the bus " );
 									bus.add(now);
 									whichCore.put(now,i);
 									numMessages++;
@@ -236,7 +237,8 @@ public class simulator
 					}
 					else
 					{
-						System.out.println("weren't ready for the current message, getting the next one");
+						if(debug && k < 4)
+							System.out.println("weren't ready for the current message, getting the next one");
 						satisfied = false;
 					}
 				}
