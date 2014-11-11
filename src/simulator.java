@@ -135,13 +135,16 @@ public class simulator
 					}
 					if(!found) //miss, need to go to memory
 					{
-						int currCore = whichCore.get(currentMessage);
-						int originalTime = currentMessage.issueCycleTime;
 						memory.setAndProcessIncomingMessage(currentMessage,cycle);
 						Message memResponse = memory.getOutgoingMessage();
-						int finalTime = memResponse.issueCycleTime;
-						numMiss[currCore]++;
-						timeMiss[currCore] = timeMiss[currCore] + finalTime-originalTime;
+						if(whichCore.containsKey(currentMessage))
+						{
+							int finalTime = memResponse.issueCycleTime;
+							int currCore = whichCore.get(currentMessage);
+							int originalTime = currentMessage.issueCycleTime;
+							numMiss[currCore]++;
+							timeMiss[currCore] = timeMiss[currCore] + finalTime-originalTime;
+						}
 						bus.add(memResponse);
 						whichCore.put(memResponse,-1);
 						numMessages++;
@@ -150,7 +153,9 @@ public class simulator
 				} //Now, need to check ACKNOWLEDGE PREVIOUS, WRITE  BACK, INVALIDATE
 				else if(currentMessage.type == MessageType.INVALIDATE)
 				{
-					int skip = whichCore.get(currentMessage);
+					int skip = -1; 
+					if(whichCore.containsKey(currentMessage))
+						skip = whichCore.get(currentMessage);
 					for(int i = 0; i < P ; i++)
 					{
 						if(i!=skip)
@@ -276,7 +281,7 @@ public class simulator
 		for(int i = 0; i < P ;i++)
 		{
 			if(numMiss[i]!=0)
-				System.out.println("The average miss penalty at core " + i + " is" + (double)timeMiss[i]/(double)numMiss[i]);
+				System.out.println("The average miss penalty at core " + i + " is " + (double)timeMiss[i]/(double)numMiss[i]);
 			else
 				System.out.println("Core " + i + " did not have any L1 cache misses" );
 		}
