@@ -370,9 +370,6 @@ public class Cache {
 					return true;
 				}
 				
-				//make it shared if you have it
-				this.state[index][associativityIndex].busRead();
-				
 				//send return message if you have it
 				if(this.state[index][associativityIndex].isModified())
 				{
@@ -384,6 +381,9 @@ public class Cache {
 					//send only return message
 					this.prepareMessage(message.memoryAddress, MessageType.ACKNOWLEDGED_PREV_MESSAGE, currentCycleTime);
 				}
+				
+				//make it shared if you have it
+				this.state[index][associativityIndex].busRead();
 				
 				break;
 			case WANT_TO_WRITE:
