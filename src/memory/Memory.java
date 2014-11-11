@@ -77,7 +77,7 @@ public class Memory extends Cache
 	 * If the message was a WANT_TO_READ or WANT_TO_WRITE message, and it was handled by another cache, DO NOT SEND THE MESSAGE HERE
 	 */
 	@Override
-	public void setAndProcessIncomingMessage(Message message, int currentCycleTime)
+	public boolean setAndProcessIncomingMessage(Message message, int currentCycleTime)
 	{
 		//we have to handle it differently
 		int index = (int)(message.memoryAddress / blockSize) % this.cache.length;
@@ -119,7 +119,7 @@ public class Memory extends Cache
 				//address not found, don't care
 				if(associativityIndex == this.associativity || this.state[index][associativityIndex].isInvalid())
 				{
-					return;
+					return true;
 				}
 				this.state[index][associativityIndex].busInvalidate();
 				//invalidate it if it exists
@@ -217,5 +217,6 @@ public class Memory extends Cache
 			default:
 				throw new UnsupportedOperationException("Message Type is not handled.");
 		}
+		return true;
 	}
 }
