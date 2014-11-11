@@ -14,6 +14,7 @@ public class simulator
 	static ArrayList<iList> instructionsLeft; //when this is empty then we stop
 	static ArrayList<Cache> caches;
 	static ArrayList<Message> bus;
+	static ArrayList<instruction> removeThisCycle;
 	static Memory memory;
 	static Message currentMessage;
 	static int [] timeDone;
@@ -43,6 +44,7 @@ public class simulator
 	{
 		instructionList = new ArrayList<String>();
 		instructionsLeft = new ArrayList<iList>();
+		removeThisCycle = new ArrayList<instruction>();
 		whichCore = new HashMap<Message,Integer>();
 		bus = new ArrayList<Message>();
 		File file = new File(args[0]);
@@ -89,7 +91,7 @@ public class simulator
 		int numMessages = 0;
 		while(!allCoresDone() || !bus.isEmpty())
 		{
-			Thread.sleep(1000);
+			//Thread.sleep(1000);
 			if(debug && k < 4)
 				System.out.println("Debugging Information for cycle: " + cycle + "\n\n-----------------------------------\n\n");
 			//for each core that has a non null entry in the currentRequests array, add one to every following instructions
@@ -218,6 +220,7 @@ public class simulator
 								//can generate a write back here
 								instruction iii = currentRequests[i];
 								instructionsLeft.get(iii.coreID).remove(iii);
+								removeThisCycle.add(iii);
 								currentRequests[i] = null;
 								Message now = caches.get(i).getOutgoingMessage();
 								if(now!=null)
@@ -242,12 +245,19 @@ public class simulator
 			}
 			//Update issue times if the processor isn't done with the previous request
 
-				
 			//remember to remove the current message from the HashMap
 			if(count < bus.size()) //only remove if we actually did something with our message
 			{
 				whichCore.remove(currentMessage);
 				bus.remove(currentMessage);
+			}
+			if(removeThisCycle.size() >0)
+			{
+				for(instruction inst: removeThisCycle)
+				{
+					requests.remove(inst);
+				}
+				removeThisCycle.clear();
 			}
 			for(instruction j: requests)
 			{
@@ -281,6 +291,7 @@ public class simulator
 								if(debug && k < 4)
 									System.out.println("This was a hit");
 								instructionsLeft.get(j.coreID).remove(j);
+								removeThisCycle.add(j);
 								currentRequests[j.coreID] = null;
 							}
 							else if(curr.type == MessageType.INVALIDATE) //write hit, so we done with this, BIG QUESTION (Can we continue while invalidate is on bus)
@@ -289,6 +300,7 @@ public class simulator
 									System.out.println("Write hit: sending invalidate message to the bus");
 								instructionsLeft.get(j.coreID).remove(j);
 								currentRequests[j.coreID] = null;
+								removeThisCycle.add(j);
 								bus.add(curr);
 								whichCore.put(curr,j.coreID);
 								numMessages++;
@@ -309,6 +321,14 @@ public class simulator
 			{
 				if(currentRequests[i]!=null)
 					coreDelay[i]++;
+			}
+			if(removeThisCycle.size() >0)
+			{
+				for(instruction inst: removeThisCycle)
+				{
+					requests.remove(inst);
+				}
+				removeThisCycle.clear();
 			}
 				//need to go through all messages on the bus, and for each core that has a message on the bus, we need to increment its next instructions real cycle time by 1
 				//policy for choosing message priorty goes by coreID number (0 is highest priority -> P)
