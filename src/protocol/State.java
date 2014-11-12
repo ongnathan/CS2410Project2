@@ -338,6 +338,21 @@ public class State
 		return this.state == MSI.MODIFIED || this.state == MESI.MODIFIED || this.state == MESI.EXCLUSIVE;
 	}
 	
+	public String toString()
+	{
+		if(this.state == MSI.MODIFIED || this.state == MESI.MODIFIED)
+			return "Modified";
+		else if(this.state == MSI.INVALID || this.state == MESI.INVALID)
+			return "Invalid";
+		else if(this.state == MESI.EXCLUSIVE)
+			return "Exclusive";
+		else if(this.state == MSI.MODIFIED || this.state == MESI.MODIFIED)
+			return "Modified";
+		else if(this.state == MSI.SHARED || this.state == MESI.SHARED)
+			return "Shared";
+		else
+			return "";
+	}
 	public boolean isModified()
 	{
 		return this.state == MSI.MODIFIED || this.state == MESI.MODIFIED;
