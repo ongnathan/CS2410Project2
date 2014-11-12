@@ -146,7 +146,7 @@ public class Memory extends Cache
 					}
 					this.bankFreeAtCycle[bankNumber] = currentCycleTime + this.hitPenalty;
 					this.prepareMessage(message.memoryAddress, MessageType.ACKNOWLEDGED_PREV_MESSAGE, this.bankFreeAtCycle[bankNumber]);
-					return true;
+					return false;
 				}
 				if(associativityIndex == this.associativity || this.state[index][associativityIndex].isInvalid())
 				{
@@ -190,8 +190,7 @@ public class Memory extends Cache
 				
 				//make it shared once you have it
 				this.state[index][associativityIndex].busRead();
-				
-				break;
+				return hit;
 			case WANT_TO_WRITE:
 				//address not found, need to get it from "memory"
 				if(this.addressInQueue(bankNumber, message.memoryAddress))
@@ -202,7 +201,7 @@ public class Memory extends Cache
 					}
 					this.bankFreeAtCycle[bankNumber] = currentCycleTime + (hit ? this.hitPenalty : this.missPenalty);
 					this.prepareMessage(message.memoryAddress, MessageType.ACKNOWLEDGED_PREV_MESSAGE, this.bankFreeAtCycle[bankNumber]);
-					return true;
+					return false;
 				}
 				if(associativityIndex == this.associativity || this.state[index][associativityIndex].isInvalid())
 				{
@@ -237,7 +236,7 @@ public class Memory extends Cache
 				this.leastRecentlyUsedCycle[index][associativityIndex] = this.bankFreeAtCycle[bankNumber];
 				//send return message if you have it
 				this.prepareMessage(message.memoryAddress, MessageType.ACKNOWLEDGED_PREV_MESSAGE, this.bankFreeAtCycle[bankNumber]);
-				break;
+				return hit;
 			case WRITE_BACK:
 				boolean emptySpaceFound = false;
 				for(int j = 0; j < this.associativity; j++)
@@ -270,7 +269,7 @@ public class Memory extends Cache
 		memoryAddress -= (memoryAddress % this.blockSize);
 		for(int i = 0; i < bankQueue.size(); i++)
 		{
-			if(memoryAddress == bankQueue.get(i).memoryAddress)
+			if(memoryAddress == (bankQueue.get(i).memoryAddress-(bankQueue.get(i).memoryAddress%this.blockSize)))
 			{
 				return true;
 			}
@@ -286,7 +285,7 @@ public class Memory extends Cache
 			ArrayList<Message> toRemove = new ArrayList<Message>();
 			for(int j = 0; j < bankQueue.size(); j++)
 			{
-				if(bankQueue.get(j).issueCycleTime > currentCycleTime)
+				if(bankQueue.get(j).issueCycleTime < currentCycleTime)
 				{
 					toRemove.add(bankQueue.get(j));
 				}
