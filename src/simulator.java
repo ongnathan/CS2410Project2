@@ -245,8 +245,6 @@ public class simulator
 					}
 					else
 					{
-						if(debug)
-							System.out.println("weren't ready for the current message, getting the next one");
 						satisfied = false;
 					}
 				}
@@ -350,7 +348,8 @@ public class simulator
 			checkIfCoresDone(cycle);
 			cycle++;
 		}
-		
+		System.out.println("---------------FINISHED--------------\n\n\n\n");
+		System.out.println("Here are the final statistics: \n\n");
 		System.out.println("The total number of cycles was: " + cycle);
 		for(int i = 0; i < P; i++)
 		{
@@ -388,6 +387,16 @@ public class simulator
 		
 		System.out.println("\n------------------------------------------------");
 		System.out.println(numMessages + " messages were exchanged on the bus.");
+		if(debug)
+		{
+			int x = 0;
+			for(Cache c: caches)
+			{
+				System.out.println("Here is cache: " + x + "\n\n" + c);
+				x++;
+			}
+			System.out.println("\n\nAnd L2 has :\n\n" + memory);
+		}
 		
 	}
 	public static void loadTrace(String filename) throws Exception
