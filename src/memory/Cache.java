@@ -65,7 +65,23 @@ public class Cache {
 		this.outGoingMessage = null;
 		this.referenceMessage = null;
 	}
-	
+	public String toString()
+	{
+		String x = "";
+		for(int i = 0; i < cache.length; i++)
+		{
+			for(int j = 0; j < this.associativity;j++)
+			{
+				if(cache[i][j] != -1L)
+				{
+					x = x + " The location at " + i + "," + j + " has " + cache[i][j] + " and its state is " + state[i][j];
+					x = x + "\n";
+				}
+				
+			}
+		}
+		return x;
+	}
 	/**
 	 * Prepares a message for the bus.
 	 * (Protected method, so no need to worry about this one).
@@ -298,7 +314,8 @@ public class Cache {
 				//process message
 				if(this.referenceMessage == null)
 					return false;
-				if(message.memoryAddress != this.referenceMessage.memoryAddress)
+				//block is the same
+				if(message.memoryAddress-(message.memoryAddress%this.blockSize) != this.referenceMessage.memoryAddress-(this.referenceMessage.memoryAddress%this.blockSize))
 				{
 					found = false;
 					//not pertinent information
