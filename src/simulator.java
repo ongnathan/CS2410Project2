@@ -10,6 +10,7 @@ public class simulator
 	static ArrayList<instruction> requests; //holds instructions by processor
 	static HashMap<Message,Integer> whichCore; //tells which core the message came from
 	static instruction [] currentRequests;
+	static HashMap<instruction,Message> readFound;
 	static ArrayList<String> instructionList; //holds each instruction by ID #
 	static ArrayList<iList> instructionsLeft; //when this is empty then we stop
 	static ArrayList<Cache> caches;
@@ -54,6 +55,7 @@ public class simulator
 		coreDelay = new int[P];
 		timeMiss = new int [P];
 		numMiss = new int [P];
+		readFound = new HashMap<instruction,Message>();
 		for(int j =0; j < P; j++)
 		{
 			instructionsLeft.add(new iList());
@@ -92,7 +94,7 @@ public class simulator
 		while(!allCoresDone() || !bus.isEmpty())
 		{
 			//Thread.sleep(1000);
-			if(debug && k < 4)
+			if(debug)
 				System.out.println("Debugging Information for cycle: " + cycle + "\n\n-----------------------------------\n\n");
 			//for each core that has a non null entry in the currentRequests array, add one to every following instructions
 			boolean satisfied = false;
@@ -100,6 +102,7 @@ public class simulator
 			Message currentMessage = null;
 			while(!satisfied && count < bus.size()) //keep getting messages in case it's too early to remove the current message
 			{
+				//Thread.sleep(100);
 				satisfied = true;
 				currentMessage = bus.get(count); 
 				//remove if the time has come
@@ -117,7 +120,7 @@ public class simulator
 						Message response = caches.get(i).getOutgoingMessage();
 						if(response!=null) //then we have the block, so we can simply give it to the cache or might need to write back
 						{
-							if(debug && k < 4)
+							if(debug)
 							{
 								System.out.println("Core " + whichCore.get(currentMessage) + " " + currentMessage.type + ", and block was found in cache " + i);
 								System.out.println("Sending Response to the bus");
@@ -130,34 +133,30 @@ public class simulator
 					}
 					if(!found) //miss, need to go to memory
 					{
-						if(debug && k < 4)
+						if(debug)
 						{
 							System.out.println("Core " + whichCore.get(currentMessage) + " " + currentMessage.type + " at location " + currentMessage.memoryAddress + " and block was not found (miss) ");
 						}
 						if(memory.setAndProcessIncomingMessage(currentMessage,cycle))
 						{
-							if(debug  && k<4)
+							if(debug)
 							{
 								System.out.println("Core " + whichCore.get(currentMessage) + " " + currentMessage.type + " at location " + currentMessage.memoryAddress + " and cache hit in memory" );
 							}
 						}
 						else
 						{
-							if(debug && k<4)
+							
+							if(debug)
 							{
 								System.out.println("Core " + whichCore.get(currentMessage) + " " + currentMessage.type + " at location " + currentMessage.memoryAddress + " and cache miss in memory" );
 							}
+							
+							//remember that this core got a memory miss and remember memory location
 						}
 						Message memResponse = memory.getOutgoingMessage();
-						if(whichCore.containsKey(currentMessage))
-						{
-							int finalTime = memResponse.issueCycleTime;
-							int currCore = whichCore.get(currentMessage);
-							int originalTime = currentMessage.issueCycleTime;
-							numMiss[currCore]++;
-							timeMiss[currCore] = timeMiss[currCore] + finalTime-originalTime;
-						}
-						if(debug && k <4)
+						readFound.put(currentRequests[whichCore.get(currentMessage)],memResponse);
+						if(debug)
 							System.out.println("Sending response to bus");
 						bus.add(memResponse);
 						whichCore.put(memResponse,-1);
@@ -192,7 +191,7 @@ public class simulator
 				}
 				else if(currentMessage.type == MessageType.WRITE_BACK)
 				{
-					if(debug && k < 4)
+					if(debug)
 						System.out.println("Block: " + currentMessage.memoryAddress + " was written back to memory " );
 					memory.setAndProcessIncomingMessage(currentMessage,cycle);
 				}
@@ -201,7 +200,7 @@ public class simulator
 					if(currentMessage.secondaryType == MessageType.WRITE_BACK) //memory needs to do a write back
 					{
 						memory.setAndProcessIncomingMessage(currentMessage,cycle);
-						if(debug && k < 4)
+						if(debug)
 							System.out.println("Block: " + currentMessage.memoryAddress + " was written back to memory " ); 
 					}
 					if(currentMessage.issueCycleTime < cycle) //pay the proper penalties
@@ -210,7 +209,7 @@ public class simulator
 						{
 							if(caches.get(i).setAndProcessIncomingMessage(currentMessage,cycle)) //this processor can move on
 							{
-								if(debug && k < 4)
+								if(debug)
 								{
 									if(whichCore.get(currentMessage) > -1)
 										System.out.println("Core " + i + " acknowledges the previous message from processor " + whichCore.get(currentMessage));
@@ -219,25 +218,34 @@ public class simulator
 								}
 								//can generate a write back here
 								instruction iii = currentRequests[i];
+								//Message satisfied, don't need it anymore on the bus
+								bus.remove(readFound.get(iii));
+								readFound.remove(iii);
+								long address = Long.parseLong(iii.address.substring(2,iii.address.length()), 16);
 								instructionsLeft.get(iii.coreID).remove(iii);
 								removeThisCycle.add(iii);
 								currentRequests[i] = null;
 								Message now = caches.get(i).getOutgoingMessage();
 								if(now!=null)
 								{
-									if(debug && k < 4)
+									if(debug)
 										System.out.println("And a write back request was generated and placed on the bus " );
 									bus.add(now);
 									whichCore.put(now,i);
 									numMessages++;
 								}
-								
+								//go through all cores
+								//check if a core has a currentRequest for this block
+								//if it does
+								//find its message from memory that is on the bus
+								//set its cycle time to right now, and execute the block of code
+								// for getting a message from memory with this current message
 							}
 						}
 					}
 					else
 					{
-						if(debug && k < 4)
+						if(debug)
 							System.out.println("weren't ready for the current message, getting the next one");
 						satisfied = false;
 					}
@@ -280,7 +288,7 @@ public class simulator
 						else
 						{
 							currentRequests[j.coreID] = j;
-							if(debug && k < 4)
+							if(debug)
 							{
 								if(j.isRead)
 									System.out.println("Core: " + j.coreID + " issues a request of read to memory address " + j.address + ", which had original time: " + j.originalCycleTime);
@@ -290,7 +298,7 @@ public class simulator
 							Message curr = caches.get(j.coreID).getOutgoingMessage();
 							if(curr == null) //then the request is satisfied so we can remove the request and no message need be sent
 							{
-								if(debug && k < 4)
+								if(debug)
 									System.out.println("This was a hit");
 								instructionsLeft.get(j.coreID).remove(j);
 								removeThisCycle.add(j);
@@ -309,7 +317,8 @@ public class simulator
 							}
 							else //can't remove request until its message is satisfied by the bus
 							{
-								if(debug && k < 4)
+								numMiss[j.coreID]++;
+								if(debug)
 									System.out.println("Miss: sending request to the bus");
 								bus.add(curr);
 								whichCore.put(curr,j.coreID);
@@ -322,7 +331,10 @@ public class simulator
 			for(int i = 0; i < P; i++)
 			{
 				if(currentRequests[i]!=null)
+				{
 					coreDelay[i]++;
+					timeMiss[i]++;
+				}
 			}
 			if(removeThisCycle.size() >0)
 			{
@@ -361,13 +373,19 @@ public class simulator
 		}
 		System.out.println("The overall hit rate was " + hitSum + "/" + sum + " = " + (double)hitSum/(double)sum);
 		System.out.println("\n----------------------------------------------");
+		int missTotal = 0;
+		int overall = 0;
 		for(int i = 0; i < P ;i++)
 		{
+			missTotal = missTotal + timeMiss[i];
+			overall = overall + numMiss[i];
 			if(numMiss[i]!=0)
 				System.out.println("The average miss penalty at core " + i + " is " + timeMiss[i] + "/" + numMiss[i] + " = " + (double)timeMiss[i]/(double)numMiss[i]);
 			else
 				System.out.println("Core " + i + " did not have any L1 cache misses" );
 		}
+		System.out.println("The overall average miss penalty was " + (double)missTotal/(double) overall);
+		
 		System.out.println("\n------------------------------------------------");
 		System.out.println(numMessages + " messages were exchanged on the bus.");
 		
